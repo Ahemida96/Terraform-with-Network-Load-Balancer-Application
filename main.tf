@@ -12,7 +12,7 @@ module "vpc_module" {
 
 }
 
-module "security_group_module" {
+module "ec2_security_group_module" {
   source              = "./modules/security_group_module"
   security_group_name = "ec2-sg"
   vpc_id              = module.vpc_module.vpc_id
@@ -20,16 +20,17 @@ module "security_group_module" {
 
 module "ec2_module" {
   source = "./modules/ec2_module"
-  # loop over the subnets to create multiple instances
-  for_each           = toset(module.vpc_module.all_subnets_id)
+
+  count              = length(module.vpc_module.all_subnets_id)
   instance_type      = "t2.micro"
-  security_group_ids = [module.security_group_module[0].sg_id]
+  security_group_ids = [module.ec2_security_group_module.sg_id]
   key_name           = aws_key_pair.key_pair.key_name
-  subnet_id          = each.value
+  subnet_id          = module.vpc_module.all_subnets_id[count.index]
   ami_id             = data.aws_ami.amazon_linux.id
 }
 
-module "security_group_module" {
+
+module "ls_security_group_module" {
   source              = "./modules/security_group_module"
   security_group_name = "ls-sg"
   vpc_id              = module.vpc_module.vpc_id
@@ -53,35 +54,39 @@ module "security_group_module" {
 
 module "private_lb" {
   source                        = "./modules/lb_module"
-  lb_name                       = "private_lb"
+  lb_name                       = "private-lb"
   lb_enable_deletion_protection = false
   lb_internal                   = true
   lb_subnets                    = module.vpc_module.all_subnets_id
   lb_type                       = "network"
-  lb_security_groups            = [module.security_group_module[1].sg_id]
+  lb_security_groups            = [module.ls_security_group_module.sg_id]
   vpc_id                        = module.vpc_module.vpc_id
 
   lb_target_group_port                    = 80
   lb_target_group_protocol                = "HTTP"
   lb_target_group_type                    = "instance"
-  lb_target_group_attachment_instance_ids = module.ec2_module[*].instance_id
+  lb_target_group_attachment_instance_ids = module.ec2_module[*].id
   lb_target_group_attachment_port         = 80
+}
+
+locals {
+  public_subnets_id = [for subnet in module.vpc_module.public_subnets_id : subnet]
 }
 
 module "public_lb_module" {
   source                        = "./modules/lb_module"
-  lb_name                       = "public_lb"
+  lb_name                       = "public-lb"
   lb_enable_deletion_protection = false
   lb_internal                   = false
-  lb_subnets                    = module.vpc_module.public_subnets_id
+  lb_subnets                    = local.public_subnets_id
   lb_type                       = "network"
-  lb_security_groups            = [module.security_group_module[1].sg_id]
+  lb_security_groups            = [module.ls_security_group_module.sg_id]
 
   vpc_id = module.vpc_module.vpc_id
 
   lb_target_group_port                    = 80
   lb_target_group_protocol                = "HTTP"
   lb_target_group_type                    = "instance"
-  lb_target_group_attachment_instance_ids = [for instance in module.ec2_module : instance.id if contains(module.vpc_module.public_subnets_id, instance.subnet_id)]
+  lb_target_group_attachment_instance_ids = local.public_subnets_id
   lb_target_group_attachment_port         = 80
 }

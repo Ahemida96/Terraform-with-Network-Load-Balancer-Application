@@ -45,9 +45,15 @@ resource "aws_lb_target_group" "this" {
   depends_on = [aws_lb.this]
 }
 
+locals {
+  instance_ids = { for idx, attachment in var.lb_target_group_attachment_instance_ids : idx => attachment }
+}
 resource "aws_lb_target_group_attachment" "this" {
-  for_each         = toset(var.lb_target_group_attachment_instance_ids)
+  for_each         = local.instance_ids
   target_group_arn = aws_lb_target_group.this.arn
   target_id        = each.value
   port             = var.lb_target_group_attachment_port
+
+  depends_on = [aws_lb_target_group.this]
 }
+
