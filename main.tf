@@ -57,20 +57,16 @@ module "private_lb" {
   lb_name                       = "private-lb"
   lb_enable_deletion_protection = false
   lb_internal                   = true
-  lb_subnets                    = module.vpc_module.all_subnets_id
-  lb_type                       = "network"
+  lb_subnets                    = module.vpc_module.private_subnets_id
+  lb_type                       = "application"
   lb_security_groups            = [module.ls_security_group_module.sg_id]
   vpc_id                        = module.vpc_module.vpc_id
 
   lb_target_group_port                    = 80
   lb_target_group_protocol                = "HTTP"
   lb_target_group_type                    = "instance"
-  lb_target_group_attachment_instance_ids = module.ec2_module[*].id
+  lb_target_group_attachment_instance_ids = module.ec2_module[*].private_instances_id
   lb_target_group_attachment_port         = 80
-}
-
-locals {
-  public_subnets_id = [for subnet in module.vpc_module.public_subnets_id : subnet]
 }
 
 module "public_lb_module" {
@@ -78,8 +74,8 @@ module "public_lb_module" {
   lb_name                       = "public-lb"
   lb_enable_deletion_protection = false
   lb_internal                   = false
-  lb_subnets                    = local.public_subnets_id
-  lb_type                       = "network"
+  lb_subnets                    = module.vpc_module.public_subnets_id
+  lb_type                       = "application"
   lb_security_groups            = [module.ls_security_group_module.sg_id]
 
   vpc_id = module.vpc_module.vpc_id
@@ -87,6 +83,6 @@ module "public_lb_module" {
   lb_target_group_port                    = 80
   lb_target_group_protocol                = "HTTP"
   lb_target_group_type                    = "instance"
-  lb_target_group_attachment_instance_ids = local.public_subnets_id
+  lb_target_group_attachment_instance_ids = module.ec2_module[*].public_instances_id
   lb_target_group_attachment_port         = 80
 }

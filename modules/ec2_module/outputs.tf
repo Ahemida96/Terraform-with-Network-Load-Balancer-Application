@@ -6,6 +6,24 @@ output "id" {
   )
 }
 
+output "availability_zone" {
+  description = "The availability zone of the instance"
+  value = try(
+    aws_instance.this.availability_zone,
+    null,
+  )
+}
+
+output "private_instances_id" {
+  value = aws_instance.private_instance[*].id
+
+}
+
+output "public_instances_id" {
+  value = aws_instance.public_instance[*].id
+
+}
+
 output "arn" {
   description = "The ARN of the instance"
   value = try(
@@ -49,3 +67,5 @@ output "private_ip" {
   )
 
 }
+
+

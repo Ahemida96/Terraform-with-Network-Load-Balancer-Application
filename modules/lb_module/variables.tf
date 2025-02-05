@@ -12,7 +12,7 @@ variable "lb_internal" {
 variable "lb_type" {
   description = "The type of load balancer to create. Possible values are application or network"
   type        = string
-  default     = "network"
+  default     = "application"
 }
 
 variable "lb_subnets" {
