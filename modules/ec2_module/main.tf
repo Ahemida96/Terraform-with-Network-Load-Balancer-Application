@@ -6,4 +6,10 @@ resource "aws_instance" "this" {
   security_groups = var.security_group_ids
   user_data       = var.user_data
   tags            = var.tags
+
+  # transfer the private key to the instance
+  provisioner "file" {
+    source      = "./terraform-key.pem"
+    destination = "/home/ec2-user/terraform-key.pem"
+  }
 }

@@ -29,43 +29,6 @@ module "public_ec2_module" {
   ami_id             = data.aws_ami.amazon_linux.id
 }
 
-locals {
-  public-instance-ips = [for instance in module.public_ec2_module : instance.public_ip]
-  msg                 = "Public instance IP:"
-  file_name           = "all_ips.txt"
-}
-
-resource "null_resource" "save_instance_ip" {
-  provisioner "local-exec" {
-    command = "echo ${local.msg} ${join("\n", local.public-instance-ips)} >> ${local.file_name}"
-  }
-}
-
-resource "null_resource" "install proxy" {
-  count = length(local.public-instance-ips)
-
-  connection {
-    type        = "ssh"
-    user        = "ec2_user"
-    private_key = aws_key_pair.key_pair.private_key
-    host        = local.public-instance-ips[count.index]
-    timeout     = "2m"
-    agent       = false
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "sudo apt-get update",
-      "sudo apt-get install nginx -y",
-      "sudo systemctl start nginx",
-      "sudo systemctl enable nginx",
-      "echo 'server { listen 80; location / { proxy_pass http://${module.private_lb.dns_name}; } }' | sudo tee /etc/nginx/sites-available/default",
-      "sudo systemctl restart nginx"
-    ]
-  }
-}
-
-
 module "private_ec2_module" {
   source = "./modules/ec2_module"
 
@@ -76,29 +39,62 @@ module "private_ec2_module" {
   subnet_id          = module.vpc_module.private_subnets_id[count.index]
   ami_id             = data.aws_ami.amazon_linux.id
 }
-
+# -----------------------------Provisioner--------------------------------------------
 locals {
+  public-instance-ips  = [for instance in module.public_ec2_module : instance.public_ip]
   private-instance-ips = [for instance in module.private_ec2_module : instance.private_ip]
-  msg                  = "Private instance IP:"
+  msg                  = "Instance-IP:"
   file_name            = "all_ips.txt"
 }
 
-resource "null_resource" "save_private_instance_ip" {
+resource "null_resource" "save_instance_ip" {
+  count = length(local.public-instance-ips)
   provisioner "local-exec" {
-    command = "echo ${local.msg} ${join("\n", local.private-instance-ips)} >> ${local.file_name}"
+    command = <<EOT
+    echo ${local.msg} ${local.public-instance-ips[count.index]} >> ${local.file_name} 
+    echo ${local.msg} ${local.private-instance-ips[count.index]} >> ${local.file_name}
+    EOT
   }
+
+  provisioner "file" {
+    source      = "./terraform-key.pem"
+    destination = "/home/ec2-user/terraform-key.pem"
+  }
+
+}
+
+resource "null_resource" "install-proxy" {
+  count = length(local.public-instance-ips)
+
+  connection {
+    type        = "ssh"
+    user        = "ec2_user"
+    private_key = file("Terraform-with-Network-Load-Balancer-Application/terraform-key.pem")
+    host        = local.public-instance-ips[count.index]
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo yum install nginx -y",
+      "echo 'server { listen 80; location / { proxy_pass http://${module.private_lb.dns_name}; } }' | sudo tee /etc/nginx/sites-available/default",
+      "sudo systemctl start nginx",
+      "sudo systemctl enable nginx",
+    ]
+  }
+  depends_on = [null_resource.save_instance_ip]
 }
 
 resource "null_resource" "install_apache" {
-  for_each = { for idx, ip in module.private_ec2_module.private_ip : idx => ip }
+  count = length(local.private-instance-ips)
 
   connection {
-    type         = "ssh"
-    host         = each.value
-    user         = "ec2-user"
-    private_key  = aws_key_pair.key_pair.private_key
-    bastion_host = module.public_ec2_module[0].public_ip
-    bastion_user = "ec2-user"
+    type                = "ssh"
+    host                = local.private-instance-ips[count.index]
+    user                = "ec2-user"
+    private_key         = file("Terraform-with-Network-Load-Balancer-Application/terraform-key.pem")
+    bastion_host        = module.public_ec2_module[0].public_ip
+    bastion_user        = "ec2-user"
+    bastion_private_key = file("Terraform-with-Network-Load-Balancer-Application/terraform-key.pem")
   }
 
   provisioner "remote-exec" {
@@ -106,25 +102,13 @@ resource "null_resource" "install_apache" {
       "sudo yum install httpd -y",
       "sudo systemctl start httpd",
       "sudo systemctl enable httpd",
-      "echo '<h1>Welcome to private instance ${each.value}</h1>' | sudo tee /var/www/html/index.html"
+      "echo '<h1>Welcome to private instance ${local.private-instance-ips[count.index]}</h1>' | sudo tee /var/www/html/index.html"
     ]
   }
+  depends_on = [null_resource.save_instance_ip]
 }
 
-resource "null_resource" "install_proxy" {
-  count = length(local.private-instance-ips)
-
-  connection {
-    type        = "ssh"
-    user        = "ec2_user"
-    private_key = aws_key_pair.key_pair.private_key
-    host        = local.private-instance-ips[count.index]
-    timeout     = "2m"
-    agent       = false
-  }
-
-}
-
+# --------------------------------------------------------------------------------
 
 module "ls_security_group_module" {
   source              = "./modules/security_group_module"
