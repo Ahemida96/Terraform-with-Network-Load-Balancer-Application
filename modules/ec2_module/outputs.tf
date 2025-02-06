@@ -1,4 +1,4 @@
-output "id" {
+output "instance_id" {
   description = "The ID of the instance"
   value = try(
     aws_instance.this.id,
@@ -12,16 +12,6 @@ output "availability_zone" {
     aws_instance.this.availability_zone,
     null,
   )
-}
-
-output "private_instances_id" {
-  value = aws_instance.private_instance[*].id
-
-}
-
-output "public_instances_id" {
-  value = aws_instance.public_instance[*].id
-
 }
 
 output "arn" {

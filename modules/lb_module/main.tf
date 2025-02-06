@@ -38,8 +38,8 @@ resource "aws_lb_target_group" "this" {
     port                = "traffic-port"
     healthy_threshold   = 2
     unhealthy_threshold = 2
-    timeout             = 3
-    interval            = 30
+    timeout             = 30
+    interval            = 45
   }
 
   depends_on = [aws_lb.this]
