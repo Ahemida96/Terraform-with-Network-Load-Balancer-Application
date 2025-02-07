@@ -42,3 +42,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "is-public" {
+  description = "Associate a public IP address with the instance"
+  type        = bool
+  default     = false
+}

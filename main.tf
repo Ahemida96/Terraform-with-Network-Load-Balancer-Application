@@ -26,7 +26,8 @@ module "public_ec2_module" {
   security_group_ids = [module.ec2_security_group_module.sg_id]
   key_name           = aws_key_pair.key_pair.key_name
   subnet_id          = module.vpc_module.public_subnets_id[count.index]
-  ami_id             = data.aws_ami.amazon_linux.id
+  ami_id             = data.aws_ami.ubuntu.id
+  is-public          = true
 }
 
 module "private_ec2_module" {
@@ -37,7 +38,7 @@ module "private_ec2_module" {
   security_group_ids = [module.ec2_security_group_module.sg_id]
   key_name           = aws_key_pair.key_pair.key_name
   subnet_id          = module.vpc_module.private_subnets_id[count.index]
-  ami_id             = data.aws_ami.amazon_linux.id
+  ami_id             = data.aws_ami.ubuntu.id
 }
 # -----------------------------Provisioner--------------------------------------------
 locals {
@@ -56,11 +57,6 @@ resource "null_resource" "save_instance_ip" {
     EOT
   }
 
-  provisioner "file" {
-    source      = "./terraform-key.pem"
-    destination = "/home/ec2-user/terraform-key.pem"
-  }
-
 }
 
 resource "null_resource" "install-proxy" {
@@ -68,17 +64,19 @@ resource "null_resource" "install-proxy" {
 
   connection {
     type        = "ssh"
-    user        = "ec2_user"
-    private_key = file("Terraform-with-Network-Load-Balancer-Application/terraform-key.pem")
+    user        = "ubuntu"
+    private_key = tls_private_key.private_key.private_key_pem
     host        = local.public-instance-ips[count.index]
   }
 
   provisioner "remote-exec" {
     inline = [
-      "sudo yum install nginx -y",
-      "echo 'server { listen 80; location / { proxy_pass http://${module.private_lb.dns_name}; } }' | sudo tee /etc/nginx/sites-available/default",
+      "sudo apt-get update",
+      "sudo apt-get install nginx -y",
       "sudo systemctl start nginx",
       "sudo systemctl enable nginx",
+      "echo 'server { listen 80; location / { proxy_pass http://${module.private_lb.dns_name}; } }' | sudo tee /etc/nginx/sites-available/default",
+      "sudo systemctl restart nginx"
     ]
   }
   depends_on = [null_resource.save_instance_ip]
@@ -90,18 +88,19 @@ resource "null_resource" "install_apache" {
   connection {
     type                = "ssh"
     host                = local.private-instance-ips[count.index]
-    user                = "ec2-user"
-    private_key         = file("Terraform-with-Network-Load-Balancer-Application/terraform-key.pem")
+    user                = "ubuntu"
+    private_key         = tls_private_key.private_key.private_key_pem
     bastion_host        = module.public_ec2_module[0].public_ip
-    bastion_user        = "ec2-user"
-    bastion_private_key = file("Terraform-with-Network-Load-Balancer-Application/terraform-key.pem")
+    bastion_user        = "ubuntu"
+    bastion_private_key = tls_private_key.private_key.private_key_pem
   }
 
   provisioner "remote-exec" {
     inline = [
-      "sudo yum install httpd -y",
-      "sudo systemctl start httpd",
-      "sudo systemctl enable httpd",
+      "sudo apt-get update",
+      "sudo apt-get install apache2 -y",
+      "sudo systemctl start apache2",
+      "sudo systemctl enable apache2",
       "echo '<h1>Welcome to private instance ${local.private-instance-ips[count.index]}</h1>' | sudo tee /var/www/html/index.html"
     ]
   }

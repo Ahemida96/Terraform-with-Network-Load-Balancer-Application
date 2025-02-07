@@ -11,10 +11,21 @@ data "aws_ami" "amazon_linux" {
     values = ["hvm"]
   }
 
+  owners = ["137112412989"] # Amazon
+}
+
+data "aws_ami" "ubuntu" {
+  most_recent = true
+
   filter {
-    name   = "architecture"
-    values = ["x86_64"]
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
   }
 
-  owners = ["137112412989"] # Amazon
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  owners = ["099720109477"] # Canonical's AWS Account ID for official Ubuntu images
 }
