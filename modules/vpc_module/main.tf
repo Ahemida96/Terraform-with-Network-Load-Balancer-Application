@@ -89,13 +89,13 @@ resource "aws_internet_gateway" "this" {
 }
 
 resource "aws_eip" "this" {
-  count      = local.len_public_subnets > 0 && local.len_public_subnets >= length(var.availability_zones) ? local.len_public_subnets : 0
+  count      = local.len_private_subnets > 0 && local.len_private_subnets >= length(var.availability_zones) ? local.len_private_subnets : 0
   domain     = "vpc"
   depends_on = [aws_internet_gateway.this]
 }
 
 resource "aws_nat_gateway" "this" {
-  count         = local.len_private_subnets > 0 && local.len_private_subnets >= length(var.availability_zones) ? local.len_private_subnets : 0
+  count         = local.len_public_subnets > 0 && local.len_public_subnets >= length(var.availability_zones) ? local.len_public_subnets : 0
   allocation_id = aws_eip.this[count.index].id
-  subnet_id     = aws_subnet.private-subnet[count.index].id
+  subnet_id     = aws_subnet.public-subnet[count.index].id
 }
