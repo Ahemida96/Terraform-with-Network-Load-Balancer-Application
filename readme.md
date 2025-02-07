@@ -13,7 +13,7 @@ This Terraform project builds a Virtual Private Cloud (VPC) in AWS with high ava
 
 ## Architecture
 ### Architecture Diagram
-![Architecture Diagram](./Architectute.png)
+![Architecture Diagram](./assets/Architectute.png)
 
 The architecture includes:
 - **VPC with Two Availability Zones (AZs):**
@@ -34,7 +34,7 @@ The architecture includes:
 ## Terraform Module Graph
 The diagram below represents the dependency graph of our Terraform configuration. Each node in the graph corresponds to a module or a resource block, and the directed arrows indicate the dependency relationships between them.
 
-![Terraform Module Graph](./Infrastructure_Graph.svg)
+![Terraform Module Graph](./assets/Infrastructure_Graph.svg)
 
 **Graph Overview:**
 
@@ -64,11 +64,18 @@ The diagram below represents the dependency graph of our Terraform configuration
 │   ├── backend.tf
 │   ├── main.tf
 │   ├── pair-key.tf
+│   ├── project_structure.txt
+│   ├── project_structure_generator.py
 │   ├── provider.tf
 │   ├── readme.md
-│   ├── s3.tf
-│   ├── setup-terraform.sh
 │   ├── variables.tf
+├── assets/
+│   ├── Architectute.png
+│   ├── Infrastructure_Graph.svg
+│   ├── S3 state file.png
+│   ├── dev workspace.png
+│   ├── public ec2 nginx configuration.png
+│   └── setup-terraform.sh
 ├── modules/
 │   ├── ec2_module/
 │   │   ├── EC2_Unit_Test_Result.png
@@ -79,6 +86,7 @@ The diagram below represents the dependency graph of our Terraform configuration
 │   ├── lb_module/
 │   │   ├── main.tf
 │   │   ├── outputs.tf
+│   │   ├── public-lb test.png
 │   │   └── variables.tf
 │   ├── security_group_module/
 │   │   ├── Security_Group_Unit_Test_Result.png
