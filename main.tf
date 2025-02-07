@@ -59,6 +59,7 @@ resource "null_resource" "save_instance_ip" {
 
 }
 
+# Install nginx on public instances
 resource "null_resource" "install-proxy" {
   count = length(local.public-instance-ips)
 
@@ -73,15 +74,15 @@ resource "null_resource" "install-proxy" {
     inline = [
       "sudo apt-get update",
       "sudo apt-get install nginx -y",
+      "echo 'server { listen 80; location / { proxy_pass http://${module.private_lb.dns_name}; } }' | sudo tee /etc/nginx/sites-available/default",
       "sudo systemctl start nginx",
       "sudo systemctl enable nginx",
-      "echo 'server { listen 80; location / { proxy_pass http://${module.private_lb.dns_name}; } }' | sudo tee /etc/nginx/sites-available/default",
-      "sudo systemctl restart nginx"
     ]
   }
   depends_on = [null_resource.save_instance_ip]
 }
 
+# Install apache on private instances
 resource "null_resource" "install_apache" {
   count = length(local.private-instance-ips)
 
